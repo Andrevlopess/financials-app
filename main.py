@@ -42,17 +42,17 @@ def categorize_transactions(df):
 
 def load_transactions(file):
     try:
+
         df = pd.read_csv(file, sep=";")
         df.columns = [col.strip() for col in df.columns]
 
-
-        df['Value'] = df['Value'].str.replace('.', '')
-        df['Value'] = df['Value'].str.replace(',', '.').astype(float)
+        df['Amount'] = df['Amount'].str.replace('.', '')
+        df['Amount'] = df['Amount'].str.replace(',', '.').astype(float)
 
         df['Balance'] = df['Balance'].str.replace('.', '')
         df['Balance'] = df['Balance'].str.replace(',', '.').astype(float)
         
-        df['Data'] = pd.to_datetime(df['Data'], format="%d/%m/%Y")
+        df['Date'] = pd.to_datetime(df['Date'], format="%d/%m/%Y")
 
         return df
         # return categorize_transactions(df)
@@ -80,41 +80,41 @@ def main():
     if uploaded_file is None:
         uploaded_file = 'extrato.csv'
 
+
     if uploaded_file is not None:
         df = load_transactions(uploaded_file)
 
         if df is not None:
-            debits_df = df[df['Value'] < 0].copy()
-            credits_df = df[df['Value'] > 0].copy()
-            earnings_df = credits_df[credits_df['Description'].str.contains('Credito Evento B3')]
+            debits_df = df[df['Amount'] < 0].copy()
+            credits_df = df[df['Amount'] > 0].copy()
 
-            earnings_df['Description'] = earnings_df['Description'].str.replace('"', '').str[-7:].str.strip()
+            earnings_df = credits_df[credits_df['Historic'] == 'Crédito Evento B3'][['Date', 'Description', 'Amount']]
+            earnings_df['Description'] = earnings_df['Description'].str[-7:].str.strip().str.upper()
+            earnings_df = earnings_df.rename(columns={'Description': 'Asset'})
 
-            
-        
-            total_payments = credits_df['Value'].sum()
-
-            total_dividends = credits_df[credits_df['Description'].str.contains('Credito Evento B3')]['Value'].sum()
+            total_payments = credits_df['Amount'].sum()
+            total_dividends = earnings_df['Amount'].sum()
 
             first_day_of_month = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
-            this_month_earnings = earnings_df[earnings_df['Data'] >= first_day_of_month]['Value'].sum()
+            this_month_earnings = earnings_df[earnings_df['Date'] >= first_day_of_month]['Amount'].sum()
             
             col1, col2 = st.columns(2)
+
             col1.metric('Total incoming', f'{total_payments:,.2f} BRL')
             col2.metric(
                 'Total dividends (12M)',
                 f'{total_dividends:,.2f} BRL',
                 delta=f'{this_month_earnings:.2f} this month'
-                )
+            )
             
 
             all_tab, credit_tab, debit_tab, earnings = st.tabs(['Todas as transações', 'Entradas (Créditos)', 'Saídas (Débitos)', 'Proventos'])
 
             default_column_configs = {
-                                'Data': st.column_config.DateColumn('Data', format='DD/MM/YYYY'),
+                                'Date': st.column_config.DateColumn('Date', format='DD/MM/YYYY'),
                                 "Description": st.column_config.TextColumn('Description', width='large'),
-                                "Value": st.column_config.NumberColumn('Value', format='%.2f BRL', ),
+                                "Amount": st.column_config.NumberColumn('Amount', format='%.2f BRL', ),
                                 'Balance': st.column_config.NumberColumn('Balance', format='%.2f BRL'),
                             }
             with all_tab:
@@ -136,12 +136,12 @@ def main():
                 #         st.rerun()
 
                 # st.subheader("Your expenses")
-                # edited_df = st.data_editor(st.session_state.debits_df[['Data', 'Description', 'Value'
+                # edited_df = st.date_editor(st.session_state.debits_df[['Date', 'Description', 'Amount'
                 #                                                     #    , 'Category'
                 #                                                        ]],
                 #                            column_config={
-                #                                'Data': st.column_config.DateColumn('Data', format='DD/MM/YYYY'),
-                #                                'Value': st.column_config.NumberColumn('Value', format="%.2f BRL"),
+                #                                'Date': st.column_config.DateColumn('Date', format='DD/MM/YYYY'),
+                #                                'Amount': st.column_config.NumberColumn('Amount', format="%.2f BRL"),
                 #                             #    'Category': st.column_config.SelectboxColumn(
                 #                             #        'Category',
                 #                             #        options=list(st.session_state.categories.keys())
@@ -169,14 +169,14 @@ def main():
                 # category_totals = (st.session_state.debits_df
                 #                     .groupby('Category')
                 #                     .agg(
-                #                         Amount=('Value', 'sum'),
+                #                         Amount=('Amount', 'sum'),
                 #                         Count=('Amount', 'count')
                 #                     )
                 #                     .reset_index()
                 #                     )
-                # category_totals = category_totals.sort_values('Amount', ascending=False)
+                # category_totals = category_totals.sort_Amounts('Amount', ascending=False)
 
-                # st.dataframe(
+                # st.dateframe(
                 #     category_totals,
                 #     column_config={
                 #         "Amount": st.column_config.NumberColumn('Amount',format="%.2f BRL")
@@ -187,7 +187,7 @@ def main():
 
                 # fig = px.pie(
                 #     category_totals,
-                #     values="Amount",
+                #     Amounts="Amount",
                 #     names="Category",
                 #     title="Expenses by category"
                 # )
@@ -205,7 +205,7 @@ def main():
 
                 st.subheader('Payments Summary')
 
-                total_payments = debits_df['Value'].sum()
+                total_payments = debits_df['Amount'].sum()
 
                 st.metric('Total payments', f'{total_payments:,.2f} BRL')
 
@@ -216,41 +216,57 @@ def main():
             with earnings:
 
                 st.subheader('Assets Transactions')
+                # earnings_df['Asset'] = earnings_df['Description'].str[-7:].str.strip().str.upper()
+                # earnings_df = earnings_df.iloc[:, [0,1,2,5,4,3]] 
+
                 st.dataframe(earnings_df, column_config=default_column_configs)
 
                 monthly_df = earnings_df.copy()
-                monthly_df['Month'] = monthly_df['Data'].dt.to_period('M')
+                monthly_df['Month'] = monthly_df['Date'].dt.to_period('M')
 
-                monthly_df = monthly_df.groupby('Month')['Value'].sum().reset_index()
+                monthly_grouped_df = monthly_df.groupby('Month')['Amount'].sum().reset_index().sort_values(by='Month', ascending=False)
 
 
                 st.subheader('Montly Earnings')
                 col1, col2 = st.columns([1,2])
 
-                col1.dataframe(monthly_df, column_config=default_column_configs)
+                col1.dataframe(monthly_grouped_df, column_config=default_column_configs)
 
-                monthly_df['Month'] = monthly_df['Month'].astype(str)
+                monthly_grouped_df['Month'] = monthly_grouped_df['Month'].astype(str)
 
-                fig = px.bar(monthly_df,
-                              x='Month', y="Value", text_auto='%.2f',
+                fig = px.bar(monthly_grouped_df,
+                              x='Month', y="Amount", text_auto='%.2f',
                             title="Earnings by month")
 
                 col2.plotly_chart(fig, use_container_width=True)
 
+                # MONTY EARNINGS BY ASSET
+                st.subheader('Montly Earnings By Asset') 
+
+                asset_select = st.selectbox('Select an asset', monthly_df['Asset'].unique())
+
+                monthly_asset_grouped_df = monthly_df[monthly_df['Asset'] == asset_select].groupby(['Month', 'Asset'])['Amount'].sum().reset_index()
+
+                monthly_asset_grouped_df['Month'] = monthly_asset_grouped_df['Month'].astype(str)
+
+
+                fig = px.bar(monthly_asset_grouped_df, x='Month', y='Amount', text_auto='%.2f', title=f"{asset_select} montly earnings by asset")
+                st.plotly_chart(fig, use_container_width=True)
+
                 # FII GROUP
                 st.subheader('Assets Earnings')
-                assets_df = earnings_df.groupby('Description')['Value'].sum().reset_index()
+                assets_df = earnings_df.groupby('Asset')['Amount'].sum().reset_index().sort_values('Amount', ascending=False)
 
                 col1, col2 = st.columns([1,2])
 
                 col1.dataframe(assets_df, column_config={  
-                                "Description": st.column_config.TextColumn('Asset'),
-                                "Value": st.column_config.NumberColumn('Value', format='%.2f BRL' ),
+                                "Asset": st.column_config.TextColumn('Asset'),
+                                "Amount": st.column_config.NumberColumn('Amount', format='%.2f BRL' ),
                             })
 
                 fig = px.pie(assets_df,
-                            values='Value', 
-                            names="Description",
+                            values='Amount', 
+                            names="Asset",
                             title="Earnings by Asset")
 
                 col2.plotly_chart(fig, use_container_width=True)
