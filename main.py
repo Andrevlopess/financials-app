@@ -4,6 +4,7 @@ import streamlit as st
 import pandas as pd
 import json
 import os
+from tabs import earnings_tab, payments_tab, credits_tab
 
 st.set_page_config(page_title="Finance App", page_icon="👌", layout="wide")
 
@@ -54,6 +55,8 @@ def load_transactions(file):
         
         df['Date'] = pd.to_datetime(df['Date'], format="%d/%m/%Y")
 
+
+        df.to_json('teste.json')
         return df
         # return categorize_transactions(df)
     
@@ -78,8 +81,7 @@ def main():
     uploaded_file = None
     
     if uploaded_file is None:
-        uploaded_file = 'extrato.csv'
-
+        uploaded_file = 'data/extrato.csv'
 
     if uploaded_file is not None:
         df = load_transactions(uploaded_file)
@@ -116,7 +118,7 @@ def main():
                                 "Description": st.column_config.TextColumn('Description', width='large'),
                                 "Amount": st.column_config.NumberColumn('Amount', format='%.2f BRL', ),
                                 'Balance': st.column_config.NumberColumn('Balance', format='%.2f BRL'),
-                            }
+            }
             with all_tab:
                 st.dataframe(df, 
                             height=600,
@@ -124,157 +126,19 @@ def main():
                             use_container_width=True,
                             hide_index=True)
                 
+                grouped_df = df.groupby('Historic')['Amount'].sum().reset_index()
+                st.dataframe(grouped_df,
+                            column_config=default_column_configs,
+                            use_container_width=True,
+                            hide_index=True)
 
-
-                # new_category = st.text_input('New category name')
-                # add_button = st.button('Add Category')
-
-                # if add_button and new_category:
-                #     if new_category not in st.session_state.categories:
-                #         st.session_state.categories[new_category] = []
-                #         save_categories()
-                #         st.rerun()
-
-                # st.subheader("Your expenses")
-                # edited_df = st.date_editor(st.session_state.debits_df[['Date', 'Description', 'Amount'
-                #                                                     #    , 'Category'
-                #                                                        ]],
-                #                            column_config={
-                #                                'Date': st.column_config.DateColumn('Date', format='DD/MM/YYYY'),
-                #                                'Amount': st.column_config.NumberColumn('Amount', format="%.2f BRL"),
-                #                             #    'Category': st.column_config.SelectboxColumn(
-                #                             #        'Category',
-                #                             #        options=list(st.session_state.categories.keys())
-                #                             #    )
-                #                            },
-                #                            hide_index=True,
-                #                            use_container_width=True,
-                #                            key="category_editor"
-                #                            )
-                
-                # save_button = st.button('Apply Changes', type="primary")
-                # if save_button:
-                #     for index, row in edited_df.iterrows():
-                #         new_category = row['Category']
-
-                #         if new_category == st.session_state.debits_df.at[index, 'Category']:
-                #             continue
-
-                #         details = row['Details']
-                #         st.session_state.debits_df.at[index, 'Category'] = new_category
-                #         add_keyword_to_category(new_category, details)
-
-                # # st.write(debits_df)
-                # st.subheader('Expense Summary')
-                # category_totals = (st.session_state.debits_df
-                #                     .groupby('Category')
-                #                     .agg(
-                #                         Amount=('Amount', 'sum'),
-                #                         Count=('Amount', 'count')
-                #                     )
-                #                     .reset_index()
-                #                     )
-                # category_totals = category_totals.sort_Amounts('Amount', ascending=False)
-
-                # st.dateframe(
-                #     category_totals,
-                #     column_config={
-                #         "Amount": st.column_config.NumberColumn('Amount',format="%.2f BRL")
-                #     },
-                #     use_container_width=True,
-                #     hide_index=True              
-                #     )
-
-                # fig = px.pie(
-                #     category_totals,
-                #     Amounts="Amount",
-                #     names="Category",
-                #     title="Expenses by category"
-                # )
-                # st.plotly_chart(fig, use_container_width=True)
             with credit_tab:
-
-                st.subheader('Incoming Summary')
-
-
-                st.dataframe(credits_df, 
-                            column_config=default_column_configs,
-                            use_container_width=True,
-                            hide_index=True)
+                credits_tab.run(credits_df)
+        
             with debit_tab:
-
-                st.subheader('Payments Summary')
-
-                total_payments = debits_df['Amount'].sum()
-
-                st.metric('Total payments', f'{total_payments:,.2f} BRL')
-
-                st.dataframe(debits_df, 
-                            column_config=default_column_configs,
-                            use_container_width=True,
-                            hide_index=True)
+                payments_tab.run(debits_df)
+              
             with earnings:
-
-                st.subheader('Assets Transactions')
-                # earnings_df['Asset'] = earnings_df['Description'].str[-7:].str.strip().str.upper()
-                # earnings_df = earnings_df.iloc[:, [0,1,2,5,4,3]] 
-
-                st.dataframe(earnings_df, column_config=default_column_configs)
-
-                monthly_df = earnings_df.copy()
-                monthly_df['Month'] = monthly_df['Date'].dt.to_period('M')
-
-                monthly_grouped_df = monthly_df.groupby('Month')['Amount'].sum().reset_index().sort_values(by='Month', ascending=False)
-
-
-                st.subheader('Montly Earnings')
-                col1, col2 = st.columns([1,2])
-
-                col1.dataframe(monthly_grouped_df, column_config=default_column_configs)
-
-                monthly_grouped_df['Month'] = monthly_grouped_df['Month'].astype(str)
-
-                fig = px.bar(monthly_grouped_df,
-                              x='Month', y="Amount", text_auto='%.2f',
-                            title="Earnings by month")
-
-                col2.plotly_chart(fig, use_container_width=True)
-
-                # MONTY EARNINGS BY ASSET
-                st.subheader('Montly Earnings By Asset') 
-
-                asset_select = st.selectbox('Select an asset', monthly_df['Asset'].unique())
-
-                monthly_asset_grouped_df = monthly_df[monthly_df['Asset'] == asset_select].groupby(['Month', 'Asset'])['Amount'].sum().reset_index()
-
-                monthly_asset_grouped_df['Month'] = monthly_asset_grouped_df['Month'].astype(str)
-
-
-                fig = px.bar(monthly_asset_grouped_df, x='Month', y='Amount', text_auto='%.2f', title=f"{asset_select} montly earnings by asset")
-                st.plotly_chart(fig, use_container_width=True)
-
-                # FII GROUP
-                st.subheader('Assets Earnings')
-                assets_df = earnings_df.groupby('Asset')['Amount'].sum().reset_index().sort_values('Amount', ascending=False)
-
-                col1, col2 = st.columns([1,2])
-
-                col1.dataframe(assets_df, column_config={  
-                                "Asset": st.column_config.TextColumn('Asset'),
-                                "Amount": st.column_config.NumberColumn('Amount', format='%.2f BRL' ),
-                            })
-
-                fig = px.pie(assets_df,
-                            values='Amount', 
-                            names="Asset",
-                            title="Earnings by Asset")
-
-                col2.plotly_chart(fig, use_container_width=True)
-
-
-
-
-
-
-
+                earnings_tab.run(earnings_df)
+ 
 main()
