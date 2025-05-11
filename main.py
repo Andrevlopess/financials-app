@@ -4,7 +4,7 @@ import streamlit as st
 import pandas as pd
 import json
 import os
-from tabs import earnings_tab, payments_tab, credits_tab
+from tabs import earnings_tab, payments_tab, credits_tab, investiments_tab
 
 st.set_page_config(page_title="Finance App", page_icon="👌", layout="wide")
 
@@ -56,7 +56,7 @@ def load_transactions(file):
         df['Date'] = pd.to_datetime(df['Date'], format="%d/%m/%Y")
 
 
-        df.to_json('teste.json')
+        # df.to_json('teste.json')
         return df
         # return categorize_transactions(df)
     
@@ -111,7 +111,7 @@ def main():
             )
             
 
-            all_tab, credit_tab, debit_tab, earnings = st.tabs(['Todas as transações', 'Entradas (Créditos)', 'Saídas (Débitos)', 'Proventos'])
+            all_tab, credit_tab, debit_tab, earnings, investiments = st.tabs(['Todas as transações', 'Entradas (Créditos)', 'Saídas (Débitos)', 'Proventos', 'Investimentos'])
 
             default_column_configs = {
                                 'Date': st.column_config.DateColumn('Date', format='DD/MM/YYYY'),
@@ -140,5 +140,8 @@ def main():
               
             with earnings:
                 earnings_tab.run(earnings_df)
+ 
+            with investiments:
+                investiments_tab.run()
  
 main()
